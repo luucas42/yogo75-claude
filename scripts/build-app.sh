@@ -19,7 +19,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key><string>YogoApp</string>
-  <key>CFBundleIdentifier</key><string>com.barisgcynr.yogo</string>
+  <key>CFBundleIdentifier</key><string>com.luucas42.yogo</string>
   <key>CFBundleName</key><string>Yogo</string>
   <key>CFBundleDisplayName</key><string>Yogo</string>
   <key>CFBundlePackageType</key><string>APPL</string>
@@ -36,7 +36,7 @@ codesign --force --sign - "$APP"
 
 # Quit a running copy first so the keyboard and the socket are released cleanly.
 if pgrep -x YogoApp >/dev/null; then
-  osascript -e 'tell application id "com.barisgcynr.yogo" to quit' || pkill -x YogoApp || true
+  osascript -e 'tell application id "com.luucas42.yogo" to quit' || pkill -x YogoApp || true
   for _ in 1 2 3 4 5; do pgrep -x YogoApp >/dev/null || break; sleep 1; done
 fi
 mkdir -p "$HOME/Applications"

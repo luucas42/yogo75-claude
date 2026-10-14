@@ -383,7 +383,7 @@ yogo/
   docs/superpowers/specs/
 ```
 
-- `Info.plist` içinde: `LSUIElement = YES` (Dock'ta görünmez), `CFBundleIdentifier = com.barisgcynr.yogo`.
+- `Info.plist` içinde: `LSUIElement = YES` (Dock'ta görünmez), `CFBundleIdentifier = com.luucas42.yogo`.
 - Ana çalıştırılabilir dosyanın adı `YogoApp` (`CFBundleExecutable`). CLI ise `yogo` adıyla aynı `Contents/MacOS/` klasörüne kopyalanır. Ana dosya `Yogo` olamaz, çünkü macOS dosya sistemi büyük-küçük harf ayırmıyor ve `yogo` ile çakışırdı.
 - Xcode projesi yoktur. Her şey `swift build` / `swift test` ve derleme betiğiyle yapılır.
 
