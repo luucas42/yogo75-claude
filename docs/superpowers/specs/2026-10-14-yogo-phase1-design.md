@@ -120,6 +120,8 @@ Atamalar ───────────┘          │
 
 ### `YogoCore` (kütüphane)
 
+> **İsim notu:** Uygulama kodunda SwiftUI'daki türlerle çakışmasın diye `Animation` türü `PixelAnimation`, `Scene` türü ise `ScreenScene` adıyla yazılır.
+
 UI ve IOKit içermez. Saat (`now`) dışarıdan verilir, böylece her şey test edilebilir.
 
 | Birim | Görevi | Arayüz |
@@ -324,7 +326,7 @@ ring   .OOOO.  O....O  O....O  O....O  O....O  .OOOO.
   `matcher` kullanılmaz, yani girdi o olayın her tetiklenişinde çalışır.
 
 **Kurallar:**
-- Bizim girdilerimiz, komut metninde `/Yogo.app/Contents/MacOS/yogo hook` geçmesinden tanınır. Kurulum idempotenttir, kaldırma yalnızca bu girdileri siler.
+- Bizim girdilerimiz, komut metninin `/Yogo.app/Contents/MacOS/yogo` içermesi ve ` hook` ile bitmesinden tanınır (yol tırnak içinde olduğu için ikisi ayrı kontrol edilir). Kurulum idempotenttir, kaldırma yalnızca bu girdileri siler.
 - Kurulumdan önce `settings.json.yogo-backup-YYYYMMDD-HHMMSS` adıyla yedek alınır.
 - Dosya geçerli bir JSON değilse **dokunulmaz** ve kullanıcıya hata gösterilir.
 - Diğer tüm anahtarlar ve kullanıcının kendi hook'ları olduğu gibi korunur.
