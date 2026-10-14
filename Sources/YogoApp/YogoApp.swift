@@ -12,6 +12,12 @@ struct YogoApp: App {
             Text("✻")
         }
         .menuBarExtraStyle(.menu)
+
+        Window("Yogo Editör", id: "editor") {
+            EditorView().environmentObject(model)
+        }
+        .defaultLaunchBehavior(.suppressed)
+        .windowResizability(.contentMinSize)
     }
 }
 

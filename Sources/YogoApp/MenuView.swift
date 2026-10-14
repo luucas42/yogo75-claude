@@ -3,6 +3,7 @@ import YogoCore
 
 struct MenuView: View {
     @EnvironmentObject var model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Text("✻ Yogo · \(model.connection.label)")
@@ -14,6 +15,11 @@ struct MenuView: View {
             Text("Sabitlenmiş animasyon (\(model.pinnedName ?? "yok"))").tag(AppSettings.IdleBehavior.pinned)
         }
         Divider()
+        Button("Editörü aç…") {
+            openWindow(id: "editor")
+            NSApp.activate()
+        }
+        .keyboardShortcut("e")
         Button(model.hooksInstalled ? "Claude Code hook'larını kaldır… (kurulu ✓)" : "Claude Code hook'larını kur…") {
             model.toggleHooks()
         }
