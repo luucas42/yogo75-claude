@@ -134,11 +134,12 @@ UI ve IOKit içermez. Saat (`now`) dışarıdan verilir, böylece her şey test 
 | `Player` | Sahne ve zamandan o anki kareyi hesaplar | `frame(for: Scene, at: Date) -> Frame?` |
 | `ScreenDriver` | Cihazla konuşan döngü | `tick(at: Date)`, `ScreenDevice` alır |
 | `HooksInstaller` | `settings.json` birleştirme, saf fonksiyon | `install(into: Data, cliPath:) throws -> Data`, `uninstall(from:)`, `isInstalled(_:)` |
-| `SignalMessage` | Socket mesaj formatı | JSON satırı: `{"event","session","notificationType"?,"tool"?}` |
+| `SignalMessage` | Socket mesaj formatı | JSON satırı: `{"event","session","notificationType"?,"tool"?,"toolUseID"?}` |
 
 ### `ScreenDriver` davranışı
 
 - `.play` sahnesine geçince önce `0x10` gönderir. Sonra her tick'te o anki kareyi iki rapor halinde yollar ve her 2 saniyede bir `0x10`'u yeniler.
+- Cihaz yeniden bağlandığında (kablo, uyku) oturum başlamamış sayılır: ilk kareden önce yine `0x10` gönderilir.
 - `.release` sahnesine geçince bir kez `0x3D` ve `0x11` gönderir, sonra hiçbir şey göndermez.
 - Tick sıklığı 20 Hz. Kare süreleri bu yüzden 50 ms'nin katlarına yuvarlanır.
 
@@ -160,7 +161,7 @@ UI ve IOKit içermez. Saat (`now`) dışarıdan verilir, böylece her şey test 
 `Yogo.app/Contents/MacOS/yogo` konumunda durur.
 
 - **`yogo hook`**
-  - Claude Code hook JSON'unu stdin'den okur. Kullandığı alanlar: `hook_event_name`, `session_id`, `notification_type`, `tool_name`.
+  - Claude Code hook JSON'unu stdin'den okur. Kullandığı alanlar: `hook_event_name`, `session_id`, `notification_type`, `tool_name`, `tool_use_id`.
   - Bu alanları socket'e gönderir. Toplam süre en fazla 300 ms.
   - **Her zaman exit 0 ile çıkar ve stdout'a hiçbir şey yazmaz.** Bu yüzden `PermissionRequest` kararlarına asla karışmaz.
 - **`yogo simulate <thinking|tool|waiting|done|idle> [--session ID]`:** test ve hata ayıklama için.
@@ -172,7 +173,8 @@ UI ve IOKit içermez. Saat (`now`) dışarıdan verilir, böylece her şey test 
 - Ayarlar `UserDefaults` içinde tutulur:
   - `claudeModeEnabled`
   - `pinnedAnimationID?`
-  - `staleTimeoutMinutes` (varsayılan 10)
+  - `staleTimeoutMinutes` (varsayılan 10, yalnızca `thinking`/`tool` için)
+  - `waitingTimeoutMinutes` (varsayılan 120)
   - `stateAssignments`: durum → animasyon id
 - Oturum açılışında otomatik başlatma `SMAppService.mainApp` ile yapılır.
 
@@ -186,11 +188,12 @@ UI ve IOKit içermez. Saat (`now`) dışarıdan verilir, böylece her şey test 
 |---|---|
 | `SessionStart` | oturum kaydı yoksa `idle` olarak oluşturulur. Varsa durum **değişmez**, çünkü otomatik sıkıştırma (`source=compact`) iş ortasında da tetikleniyor. |
 | `UserPromptSubmit` | `thinking` |
-| `PreToolUse` | `tool` |
-| `PostToolUse`, `PostToolUseFailure` | `thinking` |
+| `PreToolUse` + `tool_name` ∈ {`AskUserQuestion`, `ExitPlanMode`} | `waiting` (bu araçlar kullanıcının cevabını bekler) |
+| `PreToolUse` (diğer araçlar) | `tool_use_id` çalışan araçlar kümesine eklenir → `tool` |
+| `PostToolUse`, `PostToolUseFailure` | `tool_use_id` kümeden çıkarılır. Küme boşaldıysa `thinking`, değilse `tool` kalır. |
 | `PermissionRequest` | `waiting` |
 | `Notification` + `notification_type` ∈ {`permission_prompt`, `elicitation_dialog`, `agent_needs_input`} | `waiting` |
-| `Notification` + `idle_prompt` | `idle` |
+| `Notification` + `idle_prompt` | Oturum `waiting` değilse `idle`. `waiting` ise durum değişmez. |
 | `Stop` | `done` (`doneAt = now`) |
 | `StopFailure` | `idle` |
 | `SessionEnd` | oturum kaydı silinir |
@@ -199,8 +202,10 @@ UI ve IOKit içermez. Saat (`now`) dışarıdan verilir, böylece her şey test 
 ### Kurallar
 
 - **"Onay bekliyor"un temizlenmesi:** onay verildiğinde ayrı bir olay gelmiyor. Bunun yerine ardından gelen `PreToolUse`, `PostToolUse`, `UserPromptSubmit` ya da `Stop` durumu zaten değiştirir.
-- **`done` süresi:** `done` durumu `doneAt`'ten 4 sn sonra `idle` olur.
-- **Takılı kalan oturum:** `thinking`, `tool` ya da `waiting` durumundaki bir oturumdan `staleTimeout` süresi boyunca (varsayılan 10 dk) hiç olay gelmezse oturum `idle` sayılır. Bu, Esc ile kesilen işleri temizler, çünkü o durumda `Stop` gelmiyor.
+- **`done` süresi:** `done` durumu, `done`'a atanmış animasyonun toplam süresi kadar sürer (hazır sette ≈2 sn), sonra `idle` olur. Böylece animasyon bittikten sonra ekran boş beklemez.
+- **Paralel araçlar:** Claude birden fazla aracı aynı anda başlatabilir. Bu yüzden durum, çalışan araçların `tool_use_id` kümesine göre belirlenir. Böylece araçlar tek tek bittikçe ekran `tool` ile `thinking` arasında gidip gelmez. `UserPromptSubmit`, `Stop`, `StopFailure` ve zaman aşımları kümeyi temizler.
+- **Takılı kalan oturum:** `thinking` ya da `tool` durumundaki bir oturumdan `staleTimeout` süresi boyunca (varsayılan 10 dk) hiç olay gelmezse oturum `idle` sayılır. Bu, Esc ile kesilen işleri temizler, çünkü o durumda `Stop` gelmiyor.
+- **`waiting` bu zaman aşımına tabi değil:** kullanıcı masadan kalktığında Claude'un onay beklemesi meşrudur ve döndüğünde ekranın hâlâ uyarıyor olması gerekir. Yalnızca çok uzun bir güvenlik süresi (`waitingTimeout`, varsayılan 2 saat) sonunda `idle` olur.
 - **Alt ajanlar:** alt ajan olayları aynı `session_id` ile gelir ve ana oturumun parçası sayılır.
 - **Birleştirme:** tüm oturumlar arasında en yüksek öncelikli durum seçilir. Sıra: `waiting` > `tool` > `thinking` > `done` > `idle`. Hiç oturum yoksa sonuç `idle`.
 - **Claude modu kapalıysa** tracker çalışmaya devam eder, ama `SceneSelector` sonucunu yok sayar.
@@ -243,7 +248,7 @@ Aşağıdaki kurallardan ilk uyan seçilir:
 
 ### Hazır animasyonlar
 
-- Uygulama paketinin içinde, salt okunur.
+- Swift kaynak kodu olarak `YogoCore` içinde tanımlıdır (`BuiltinAnimations.swift`), salt okunur. Kaynak dosyası (`Bundle.module`) kullanılmaz, çünkü elle oluşturulan `.app` paketinde bu yol kolayca bozulur.
 - Hazır bir animasyon düzenlenirse kopyası oluşturulur ve o durumun ataması kopyaya taşınır.
 
 ### Renkler
@@ -330,7 +335,7 @@ ring   .OOOO.  O....O  O....O  O....O  O....O  .OOOO.
 
 | Durum | Davranış |
 |---|---|
-| Kablo çıkarıldı | Hot-plug callback'i gelir, döngü durur, rozet "Bağlı değil" olur. Kablo takılınca otomatik yeniden bağlanır ve o anki sahne kaldığı yerden devam eder. |
+| Kablo çıkarıldı | Hot-plug callback'i gelir, döngü durur, rozet "Bağlı değil" olur. Kablo takılınca otomatik yeniden bağlanır, `0x10` ile yeni oturum açar ve o anki sahne kaldığı yerden devam eder. |
 | Mac uykuya geçiyor | `NSWorkspace.willSleep` geldiğinde `.release` gönderilir ve cihaz kapatılır. `didWake` geldiğinde yeniden açılır. |
 | Uygulama çöktü | Firmware 0,5 sn içinde kendi efektine döner, ekstra bir şey yapmaya gerek yok. Normal çıkışta `0x3D` ve `0x11` gönderilir. |
 | Cihaz açılamadı (meşgul, örneğin ATK HUB açık) | Rozet "Başka bir program klavyeyi kullanıyor" olur. 5 sn arayla yeniden denenir. |
@@ -368,7 +373,6 @@ yogo/
   Sources/YogoCore/             # §4 kütüphane (UI/IOKit yok)
   Sources/YogoApp/              # SwiftUI menü + editör, HIDScreenDevice, SignalServer
   Sources/yogo/                 # CLI
-  Sources/YogoCore/Resources/Animations/*.json  # hazır set (Bundle.module; testler de doğrular)
   Tests/YogoCoreTests/
   scripts/build-app.sh          # release derler, Yogo.app'i oluşturur, ad-hoc imzalar, ~/Applications'a kurar
   docs/superpowers/specs/
@@ -382,7 +386,8 @@ yogo/
 
 - **Firmware güncellemesi protokolü değiştirebilir.** Reddedilen paketler günlüğe yazılır ve uygulama canlı modu duraklatarak zararsız şekilde geriler.
 - **`idle_prompt` zamanlaması ve Esc davranışı resmi dokümanda net değil.** Takılı oturum zaman aşımı bunu güvenceye alıyor. Kontrol listesinin 6. adımında doğrulanacak.
-- **Bluetooth ID'leri (`36B0:3004`) bu makinede doğrulanmadı.** Yanlış çıkarsa rozet "Bağlı değil" gösterir ve işlevsellik etkilenmez.
+- **Bluetooth ID'leri (`36B0:3004`) bu makinede doğrulanmadı.** Yanlış çıkarsa rozet "Bağlı değil" gösterir ve işlevsellik etkilenmez. Klavye sınıfındaki bir cihazı yalnızca listelemenin Giriş İzleme izni isteyip istemediği planın erken bir adımında test edilecek. İzin istiyorsa Bluetooth tespiti tamamen çıkarılır.
+- **`SMAppService.mainApp` ad-hoc imzayla her yeniden derlemede çalışmaya devam ediyor mu?** Planın ilk adımlarında doğrulanacak.
 - **LED renkleri ekrandakinden farklı görünür.** Bunu editördeki canlı önizleme çözüyor, renk düzeltmesi YAGNI.
 
 ## 15. Faz 2 için notlar
