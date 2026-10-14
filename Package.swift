@@ -7,6 +7,7 @@ let package = Package(
     targets: [
         .target(name: "YogoCore"),
         .executableTarget(name: "yogo", dependencies: ["YogoCore"]),
+        .executableTarget(name: "YogoApp", dependencies: ["YogoCore"]),
         .testTarget(name: "YogoCoreTests", dependencies: ["YogoCore"]),
     ]
 )
