@@ -202,7 +202,7 @@ UI ve IOKit içermez. Saat (`now`) dışarıdan verilir, böylece her şey test 
 ### Kurallar
 
 - **"Onay bekliyor"un temizlenmesi:** onay verildiğinde ayrı bir olay gelmiyor. Bunun yerine ardından gelen `PreToolUse`, `PostToolUse`, `UserPromptSubmit` ya da `Stop` durumu zaten değiştirir.
-- **`done` süresi:** `done` durumu, `done`'a atanmış animasyonun toplam süresi kadar sürer (hazır sette ≈2 sn), sonra `idle` olur. Böylece animasyon bittikten sonra ekran boş beklemez.
+- **`done` süresi:** `done` durumu, `done`'a atanmış animasyonun toplam süresi kadar sürer (hazır sette ≈1,3 sn), sonra `idle` olur. Böylece animasyon bittikten sonra ekran boş beklemez.
 - **Paralel araçlar:** Claude birden fazla aracı aynı anda başlatabilir. Bu yüzden durum, çalışan araçların `tool_use_id` kümesine göre belirlenir. Böylece araçlar tek tek bittikçe ekran `tool` ile `thinking` arasında gidip gelmez. `UserPromptSubmit`, `Stop`, `StopFailure` ve zaman aşımları kümeyi temizler.
 - **Takılı kalan oturum:** `thinking` ya da `tool` durumundaki bir oturumdan `staleTimeout` süresi boyunca (varsayılan 10 dk) hiç olay gelmezse oturum `idle` sayılır. Bu, Esc ile kesilen işleri temizler, çünkü o durumda `Stop` gelmiyor.
 - **`waiting` bu zaman aşımına tabi değil:** kullanıcı masadan kalktığında Claude'un onay beklemesi meşrudur ve döndüğünde ekranın hâlâ uyarıyor olması gerekir. Yalnızca çok uzun bir güvenlik süresi (`waitingTimeout`, varsayılan 2 saat) sonunda `idle` olur.
@@ -282,7 +282,7 @@ ring   .OOOO.  O....O  O....O  O....O  O....O  .OOOO.
 | `thinking` | evet | dot 160 · cross 160 · plus 160 · spark 260 · plus 160 · cross 160 · dot 160 · off 120 |
 | `tool` | evet | plus 260 · xray 260 |
 | `waiting` | evet | sparkW 140 · off 110 · sparkW 140 · off 110 · sparkD 700 |
-| `done` | hayır | dot 90 · cross 90 · spark 140 · ringG 520 · ringg 220 · off 900 |
+| `done` | hayır | dot 90 · cross 90 · spark 140 · ringG 700 · ringg 300 (sondaki boş kare kaldırıldı, bitince ekran doğrudan klavyeye döner) |
 
 ## 8. PNG/GIF içe aktarma
 
@@ -302,7 +302,8 @@ ring   .OOOO.  O....O  O....O  O....O  O....O  .OOOO.
 5. Editörü aç (⌘E).
 6. Claude Code hook'ları: kur / kaldır, yanında durum.
 7. Oturum açılışında başlat.
-8. Çıkış.
+8. Claude durumunu sıfırla. Terminal `SessionEnd` gelmeden kapanırsa takılı kalan oturumları temizler.
+9. Çıkış.
 
 **Editör:**
 - **Sol:** Claude durumları ve kullanıcının animasyonları. Yeni animasyon oluşturma, PNG/GIF içe aktarma.
@@ -343,6 +344,8 @@ ring   .OOOO.  O....O  O....O  O....O  O....O  .OOOO.
 | Socket'e bağlanılamadı (CLI tarafı) | Sessizce exit 0. |
 | `settings.json` bozuk | Dosyaya dokunulmaz, kullanıcıya açıklayıcı bir hata gösterilir. |
 | Animasyon dosyası bozuk | Dosya atlanır. Atandığı durum hazır animasyona döner. |
+| İkinci bir Yogo örneği açıldı | Socket'te canlı bir sunucu yanıt veriyorsa yeni örnek socket'i ve cihazı ele geçirmez. Uyarı gösterip kapanır. |
+| `settings.json` bir symlink (dotfiles yöneticisi) | Yazma işlemi symlink'in hedefine yapılır, symlink korunur. |
 
 **Günlük:** `~/Library/Logs/Yogo/yogo.log`, dönüşümlü tutulur (en fazla 1 MB × 3 dosya).
 
@@ -369,7 +372,7 @@ ring   .OOOO.  O....O  O....O  O....O  O....O  .OOOO.
 
 ```
 yogo/
-  Package.swift                 # macOS 14+, Swift 6
+  Package.swift                 # macOS 15+, Swift 6 derleyicisi (dil modu 5)
   Sources/YogoCore/             # §4 kütüphane (UI/IOKit yok)
   Sources/YogoApp/              # SwiftUI menü + editör, HIDScreenDevice, SignalServer
   Sources/yogo/                 # CLI
@@ -379,7 +382,7 @@ yogo/
 ```
 
 - `Info.plist` içinde: `LSUIElement = YES` (Dock'ta görünmez), `CFBundleIdentifier = com.barisgcynr.yogo`.
-- `yogo` CLI, `Contents/MacOS/` klasörüne kopyalanır.
+- Ana çalıştırılabilir dosyanın adı `YogoApp` (`CFBundleExecutable`). CLI ise `yogo` adıyla aynı `Contents/MacOS/` klasörüne kopyalanır. Ana dosya `Yogo` olamaz, çünkü macOS dosya sistemi büyük-küçük harf ayırmıyor ve `yogo` ile çakışırdı.
 - Xcode projesi yoktur. Her şey `swift build` / `swift test` ve derleme betiğiyle yapılır.
 
 ## 14. Riskler ve açık noktalar
