@@ -44,8 +44,10 @@ struct EditorView: View {
                 Divider()
                 PaletteView(model: model).frame(width: 160)
             }
+            Divider()
+            FrameStripView(model: model)
         }
-        .frame(minWidth: 760, minHeight: 420)
+        .frame(minWidth: 860, minHeight: 560)
         .onDisappear { model.windowClosed() }
     }
 }
