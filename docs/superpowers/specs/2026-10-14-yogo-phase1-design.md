@@ -351,7 +351,7 @@ ring   .OOOO.  O....O  O....O  O....O  O....O  .OOOO.
 - **Birim testleri** (`swift test`, `YogoCoreTests`):
   - **`Packet` ve `Frame`:** spike'ta çalıştığı görülen baytlarla birebir karşılaştırma. Örnek: tam kırmızı karenin ilk raporu `aa 3c 00 00 38 00 00 00 00 f8 …`.
   - **`Command`:** izinli komutların ham değerleri tam olarak `{0x10, 0x3C, 0x3D, 0x11}`. `0x3B` ve `0x31` hiçbir yoldan üretilemiyor.
-  - **`ClaudeTracker`:** olay dizileri, `done` → `idle` (4 sn), takılı oturum zaman aşımı, çoklu oturum önceliği, `SessionEnd`. Saat sahte olarak dışarıdan verilir.
+  - **`ClaudeTracker`:** olay dizileri, `done` → `idle` (animasyon süresi kadar), paralel araçlarda titreme olmaması (`tool_use_id` kümesi), `AskUserQuestion` → `waiting`, `idle_prompt`'un `waiting`'i bozmaması, takılı oturum zaman aşımı (`waiting` hariç), çoklu oturum önceliği, `SessionEnd`. Saat sahte olarak dışarıdan verilir.
   - **`SceneSelector` ve `Player`:** öncelik sırası, döngü, `done`'ın son karede kalması, 50 ms yuvarlama.
   - **`ScreenDriver`:** sahte cihazla; `0x10` yenileme sıklığı ve `.release`'te `0x3D` + `0x11`'in yalnızca bir kez gönderilmesi.
   - **`HooksInstaller`:** boş dosya, mevcut hook'lar, idempotent kurulum, kaldırma, bozuk JSON.
