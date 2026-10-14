@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS("15.0")],
     targets: [
         .target(name: "YogoCore"),
+        .executableTarget(name: "yogo", dependencies: ["YogoCore"]),
         .testTarget(name: "YogoCoreTests", dependencies: ["YogoCore"]),
     ]
 )
